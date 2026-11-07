@@ -32,7 +32,16 @@ const validators = {
   id: createValidator('id'),
 }
 
-export const uploadsCloud = async (state?: ServerFormState<any, any>, formData?: FormData) => {
+export type CustomServerFormState = ServerFormState<any, any> & {
+  success?: boolean;
+  error?: string;
+  url?: string;
+};
+
+export const uploadsCloud = async (
+  state: CustomServerFormState,
+  formData: FormData
+): Promise<CustomServerFormState> => {
   const language = getLanguage(await getLocale())
   const messages = getDictionary(language).upload.errors
 
@@ -41,19 +50,28 @@ export const uploadsCloud = async (state?: ServerFormState<any, any>, formData?:
     const session = await verifySession(cookieStore.get(SESSION_COOKIE)?.value);
 
     if (!session) {
-      return { success: false, error: messages.signIn }
+      return {
+        ...state,
+        success: false,
+        error: messages.signIn,
+      }
     }
 
     if (!formData) {
-      return { success: false, error: messages.noFormData }
+      return {
+        ...state,
+        success: false,
+        error: messages.noFormData,
+      }
     }
 
     const validatedData = await validators[language](formData)
 
     if (!validatedData.files || !(validatedData.files instanceof File)) {
       return {
+        ...state,
         success: false,
-        error: messages.invalidFile
+        error: messages.invalidFile,
       }
     }
 
@@ -72,17 +90,26 @@ export const uploadsCloud = async (state?: ServerFormState<any, any>, formData?:
       ).end(buffer);
     });
 
-    return { success: true, url: result.secure_url };
+    return {
+      ...state,
+      success: true,
+      error: '',
+      url: result.secure_url,
+    }
   } catch (e) {
     if (e instanceof ServerValidateError) {
-      return e.formState
+      return {
+        ...(e.formState as CustomServerFormState),
+        success: false,
+      }
     }
 
     console.error("Cloudinary Upload Error:", e);
 
     return {
+      ...state,
       success: false,
-      error: e instanceof Error ? e.message : messages.failed
+      error: e instanceof Error ? e.message : messages.failed,
     }
   }
 }

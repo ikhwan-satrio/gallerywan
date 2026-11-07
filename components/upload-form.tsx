@@ -17,18 +17,25 @@ import {
   RotateCcw,
 } from "lucide-react";
 import {
-  initialFormState,
   mergeForm,
   useForm,
   useTransform,
 } from "@tanstack/react-form-nextjs";
-import { uploadsCloud } from "@/app/upload/actions";
+import { uploadsCloud, type CustomServerFormState } from "@/app/upload/actions";
 import { getFormOpts } from "@/lib/formOpts/uploads";
 import type { Dictionary } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "./ui/field";
+
+const initialState: CustomServerFormState = {
+  success: false,
+  error: "",
+  values: {},
+  errorMap: {},
+  errors: [],
+};
 
 export function UploadForms({
   language,
@@ -39,7 +46,7 @@ export function UploadForms({
 }) {
   const [state, action, isPending] = useActionState(
     uploadsCloud,
-    initialFormState
+    initialState
   );
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +54,7 @@ export function UploadForms({
 
   const form = useForm({
     ...formOpts,
-    transform: useTransform((baseForm) => mergeForm(baseForm, state!), [state]),
+    transform: useTransform((baseForm) => mergeForm(baseForm, state), [state]),
   });
 
   useEffect(() => {
@@ -56,13 +63,8 @@ export function UploadForms({
     };
   }, [preview]);
 
-  const actionState = state as
-    | { success?: boolean; error?: string; url?: string }
-    | null
-    | undefined;
-  const actionError =
-    typeof actionState?.error === "string" ? actionState.error : null;
-  const actionSaved = actionState?.success === true;
+  const actionError = state?.error || null;
+  const actionSaved = state?.success === true;
 
   const resetForm = () => {
     form.reset();
@@ -82,14 +84,13 @@ export function UploadForms({
 
       <CardHeader className="px-6 pt-8 sm:px-9">
         <div className="flex items-center justify-between font-mono text-[9px] tracking-[0.3em] uppercase text-[#9c927f]">
-          {/* <span>{copy.formTitle}</span> */}
           <Heart className="size-3 fill-[#c8452f] text-[#c8452f]" />
         </div>
       </CardHeader>
 
       <form
         id="add-memory-form"
-        action={action as never}
+        action={action}
         onSubmit={() => {
           form.handleSubmit();
         }}
